@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  KABID
+}
+
+enum WebStatus {
+  AKTIF
+  TIDAK_AKTIF
+  SUSPEND
+}
+
+enum ActivityStatus {
+  PENDING
+  CONFIRMED
+  INSTRUCTED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(ADMIN)
+  skpdId    String?
+  skpd      Skpd?    @relation(fields: [skpdId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([skpdId])
+}
+
+model Skpd {
+  id              String    @id @default(cuid())
+  nama            String
+  singkatan       String    @unique
+  penanggungjawab String
+  kontak          String
+  users           User[]
+  webApps         WebApp[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model WebApp {
+  id             String           @id @default(cuid())
+  nama           String
+  url            String           @unique
+  status         WebStatus        @default(AKTIF)
+  alasanSuspend  String?
+  adminTeknis    String
+  kontakAdmin    String
+  vendor         String?
+  kontakVendor   String?
+  platform       String?
+  tanggalAktif   DateTime?
+  tanggalExpired DateTime?
+  skpdId         String
+  skpd           Skpd             @relation(fields: [skpdId], references: [id])
+  activities     ActivityReport[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([skpdId])
+  @@index([status])
+}
+
+model ActivityReport {
+  id            String         @id @default(cuid())
+  jenisKegiatan String
+  deskripsi     String
+  tanggal       DateTime
+  status        ActivityStatus @default(PENDING)
+  instruksi     String?
+  webAppId      String
+  webApp        WebApp         @relation(fields: [webAppId], references: [id])
+  createdById   String
+  confirmedById String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([webAppId])
+  @@index([status])
+  @@index([tanggal])
+}
