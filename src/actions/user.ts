@@ -66,7 +66,7 @@ export async function updateUser(id: string, formData: FormData): Promise<Action
       skpdId: (formData.get("skpdId") as string) || null,
     }
     const validated = updateUserSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
 
     await prisma.user.update({
       where: { id },
