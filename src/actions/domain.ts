@@ -39,7 +39,7 @@ function parseFormData(formData: FormData) {
     skpdId: formData.get("skpdId") as string,
     status: formData.get("status") as string,
     alasanSuspend: get("alasanSuspend"),
-    keterangan: get("keterangan"),       // ← pastikan ada ini
+    keterangan: get("keterangan"),
     adminTeknis: formData.get("adminTeknis") as string,
     kontakAdmin: formData.get("kontakAdmin") as string,
     vendor: get("vendor"),
@@ -55,7 +55,9 @@ export async function createDomain(formData: FormData): Promise<ActionResult> {
     await requireAdminOrAbove()
     const raw = parseFormData(formData)
     const validated = domainSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
 
     const { tanggalAktif, tanggalExpired, alasanSuspend, keterangan, status, ...rest } = validated.data
 
@@ -81,7 +83,9 @@ export async function updateDomain(id: string, formData: FormData): Promise<Acti
     await requireAdminOrAbove()
     const raw = parseFormData(formData)
     const validated = domainSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
 
     const { tanggalAktif, tanggalExpired, alasanSuspend, keterangan, status, ...rest } = validated.data
 
@@ -106,12 +110,7 @@ export async function updateDomain(id: string, formData: FormData): Promise<Acti
 export async function deleteDomain(id: string): Promise<ActionResult> {
   try {
     await requireSuperAdmin()
-
-    // Hapus activity reports terkait dulu
-    await prisma.activityReport.deleteMany({
-      where: { webAppId: id },
-    })
-
+    await prisma.activityReport.deleteMany({ where: { webAppId: id } })
     await prisma.webApp.delete({ where: { id } })
     revalidatePath("/dashboard/domain")
     return { success: true, message: "Domain berhasil dihapus" }
