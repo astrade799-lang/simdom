@@ -106,6 +106,12 @@ export async function updateDomain(id: string, formData: FormData): Promise<Acti
 export async function deleteDomain(id: string): Promise<ActionResult> {
   try {
     await requireSuperAdmin()
+
+    // Hapus activity reports terkait dulu
+    await prisma.activityReport.deleteMany({
+      where: { webAppId: id },
+    })
+
     await prisma.webApp.delete({ where: { id } })
     revalidatePath("/dashboard/domain")
     return { success: true, message: "Domain berhasil dihapus" }
