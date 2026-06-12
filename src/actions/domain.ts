@@ -55,7 +55,7 @@ export async function createDomain(formData: FormData): Promise<ActionResult> {
     await requireAdminOrAbove()
     const raw = parseFormData(formData)
     const validated = domainSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
 
     const { tanggalAktif, tanggalExpired, alasanSuspend, keterangan, status, ...rest } = validated.data
 

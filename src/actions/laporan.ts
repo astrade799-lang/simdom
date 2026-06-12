@@ -41,7 +41,7 @@ export async function createLaporan(formData: FormData): Promise<ActionResult> {
       webAppId: formData.get("webAppId") as string,
     }
     const validated = laporanSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
 
     await prisma.activityReport.create({
       data: {

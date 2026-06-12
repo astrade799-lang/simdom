@@ -37,7 +37,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       skpdId: (formData.get("skpdId") as string) || null,
     }
     const validated = createUserSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
 
     const hashedPassword = await bcrypt.hash(validated.data.password, 12)
     await prisma.user.create({

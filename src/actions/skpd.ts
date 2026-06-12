@@ -35,7 +35,7 @@ export async function createSkpd(formData: FormData): Promise<ActionResult> {
       kontak: formData.get("kontak") as string,
     }
     const validated = skpdSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
     await prisma.skpd.create({ data: validated.data })
     revalidatePath("/dashboard/skpd")
     return { success: true, message: "SKPD berhasil ditambahkan" }
