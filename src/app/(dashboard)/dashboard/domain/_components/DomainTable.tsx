@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { deleteDomain } from "@/actions/domain"
 import { StatusBadge } from "@/components/ui/Badge"
 import { DomainModal } from "./DomainModal"
+import { DomainDetailModal } from "./DomainDetailModal"
 import type { WebStatus, Role } from "@prisma/client"
 
 type WebApp = {
@@ -13,6 +14,7 @@ type WebApp = {
   url: string
   status: WebStatus
   alasanSuspend: string | null
+  keterangan: string | null        // ← tambahkan
   adminTeknis: string
   kontakAdmin: string
   vendor: string | null
@@ -52,6 +54,10 @@ export function DomainTable({
   const [isDeleting, setIsDeleting] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
   const [searchInput, setSearchInput] = useState(currentSearch)
+
+  // di dalam komponen:
+const [detailDomain, setDetailDomain] = useState<WebApp | null>(null)
+const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const totalPages = Math.ceil(total / pageSize)
   const canEdit = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
@@ -220,11 +226,16 @@ function handleReset() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={app.status} />
-                      {app.status === "SUSPEND" && app.alasanSuspend && (
-                        <p className="mt-1 text-xs text-red-500">{app.alasanSuspend}</p>
-                      )}
-                    </td>
+  <div className="space-y-1">
+    <StatusBadge status={app.status} />
+    {app.status === "SUSPEND" && app.alasanSuspend && (
+      <p className="text-xs text-red-500 line-clamp-1">⚠ {app.alasanSuspend}</p>
+    )}
+    {app.status === "TIDAK_AKTIF" && app.keterangan && (
+      <p className="text-xs text-gray-400 line-clamp-1">📝 {app.keterangan}</p>
+    )}
+  </div>
+</td>
                     <td className="px-4 py-3">
                       <p className="text-gray-700">{app.adminTeknis}</p>
                       <p className="text-xs text-gray-400">{app.kontakAdmin}</p>
@@ -232,6 +243,17 @@ function handleReset() {
                     {(canEdit || canDelete) && (
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
+                             {/* Tombol detail - semua role bisa lihat */}
+<button
+  onClick={() => { setDetailDomain(app); setIsDetailOpen(true) }}
+  className="rounded-lg p-1.5 text-gray-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+  title="Lihat Detail"
+>
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+  </svg>
+</button>
                           {canEdit && (
                             <button onClick={() => { setSelectedDomain(app); setIsModalOpen(true) }}
                               className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors">
@@ -312,6 +334,12 @@ function handleReset() {
           </div>
         </div>
       )}
+
+<DomainDetailModal
+  isOpen={isDetailOpen}
+  onClose={() => setIsDetailOpen(false)}
+  domain={detailDomain}
+/>
 
       <DomainModal
         isOpen={isModalOpen}

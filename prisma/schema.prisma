@@ -58,6 +58,7 @@ model WebApp {
   url            String           @unique
   status         WebStatus        @default(AKTIF)
   alasanSuspend  String?
+  keterangan     String?
   adminTeknis    String
   kontakAdmin    String
   vendor         String?

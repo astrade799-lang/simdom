@@ -39,6 +39,7 @@ function parseFormData(formData: FormData) {
     skpdId: formData.get("skpdId") as string,
     status: formData.get("status") as string,
     alasanSuspend: get("alasanSuspend"),
+    keterangan: get("keterangan"),       // ← pastikan ada ini
     adminTeknis: formData.get("adminTeknis") as string,
     kontakAdmin: formData.get("kontakAdmin") as string,
     vendor: get("vendor"),
@@ -56,12 +57,13 @@ export async function createDomain(formData: FormData): Promise<ActionResult> {
     const validated = domainSchema.safeParse(raw)
     if (!validated.success) return { success: false, message: validated.error.errors[0].message }
 
-    const { tanggalAktif, tanggalExpired, alasanSuspend, status, ...rest } = validated.data
+    const { tanggalAktif, tanggalExpired, alasanSuspend, keterangan, status, ...rest } = validated.data
 
     await prisma.webApp.create({
       data: {
         ...rest,
         status,
+        keterangan: keterangan ?? null,
         alasanSuspend: status !== "SUSPEND" ? null : alasanSuspend ?? null,
         tanggalAktif: tanggalAktif ? new Date(tanggalAktif) : null,
         tanggalExpired: tanggalExpired ? new Date(tanggalExpired) : null,
@@ -81,13 +83,14 @@ export async function updateDomain(id: string, formData: FormData): Promise<Acti
     const validated = domainSchema.safeParse(raw)
     if (!validated.success) return { success: false, message: validated.error.errors[0].message }
 
-    const { tanggalAktif, tanggalExpired, alasanSuspend, status, ...rest } = validated.data
+    const { tanggalAktif, tanggalExpired, alasanSuspend, keterangan, status, ...rest } = validated.data
 
     await prisma.webApp.update({
       where: { id },
       data: {
         ...rest,
         status,
+        keterangan: keterangan ?? null,
         alasanSuspend: status !== "SUSPEND" ? null : alasanSuspend ?? null,
         tanggalAktif: tanggalAktif ? new Date(tanggalAktif) : null,
         tanggalExpired: tanggalExpired ? new Date(tanggalExpired) : null,

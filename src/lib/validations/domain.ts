@@ -6,6 +6,7 @@ export const domainSchema = z.object({
   skpdId: z.string().min(1, "SKPD wajib dipilih"),
   status: z.enum(["AKTIF", "TIDAK_AKTIF", "SUSPEND"]),
   alasanSuspend: z.string().optional().nullable(),
+  keterangan: z.string().optional().nullable(),
   adminTeknis: z.string().min(2, "Nama admin teknis minimal 2 karakter"),
   kontakAdmin: z.string().min(5, "Kontak admin minimal 5 karakter"),
   vendor: z.string().optional().nullable(),

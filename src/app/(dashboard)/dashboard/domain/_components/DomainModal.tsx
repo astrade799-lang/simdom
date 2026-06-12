@@ -11,6 +11,7 @@ type WebApp = {
   url: string
   status: WebStatus
   alasanSuspend: string | null
+  keterangan: string | null  // ← tambahkan
   adminTeknis: string
   kontakAdmin: string
   vendor: string | null
@@ -121,21 +122,48 @@ export function DomainModal({ isOpen, onClose, domain, skpds }: DomainModalProps
           </div>
 
           <div>
-            <label className={labelClass}>Platform <span className="text-gray-400 font-normal">(opsional)</span></label>
-            <input name="platform" defaultValue={domain?.platform ?? ""} placeholder="WordPress, Laravel, dll" className={inputClass} />
-          </div>
+  <label className={labelClass}>Platform <span className="text-gray-400 font-normal">(opsional)</span></label>
+  <input name="platform" defaultValue={domain?.platform ?? ""} placeholder="WordPress, Laravel, dll" className={inputClass} />
+</div>
 
-          {status === "SUSPEND" && (
-            <div className="col-span-2">
-              <label className={labelClass}>Alasan Suspend <span className="text-red-500">*</span></label>
-              <input name="alasanSuspend" defaultValue={domain?.alasanSuspend ?? ""} required placeholder="Jelaskan alasan suspend..." className={inputClass} />
-            </div>
-          )}
+{status === "SUSPEND" && (
+  <div className="col-span-2">
+    <label className={labelClass}>Alasan Suspend <span className="text-red-500">*</span></label>
+    <input name="alasanSuspend" defaultValue={domain?.alasanSuspend ?? ""} required placeholder="Jelaskan alasan suspend..." className={inputClass} />
+  </div>
+)}
 
-          <div>
-            <label className={labelClass}>Admin Teknis <span className="text-red-500">*</span></label>
-            <input name="adminTeknis" defaultValue={domain?.adminTeknis === "-" ? "" : domain?.adminTeknis} required placeholder="Nama admin teknis" className={inputClass} />
-          </div>
+{/* ← TAMBAHKAN BLOK INI DI SINI */}
+<div className="col-span-2">
+  <label className={labelClass}>
+    Keterangan Status{" "}
+    <span className="text-gray-400 font-normal">
+      {status === "SUSPEND"
+        ? "(opsional — catatan tambahan)"
+        : status === "TIDAK_AKTIF"
+        ? "(opsional — jelaskan kenapa tidak aktif)"
+        : "(opsional — catatan tentang domain ini)"}
+    </span>
+  </label>
+  <textarea
+    name="keterangan"
+    defaultValue={domain?.keterangan ?? ""}
+    rows={2}
+    placeholder={
+      status === "TIDAK_AKTIF"
+        ? "Contoh: Kontrak berakhir, menunggu perpanjangan..."
+        : status === "SUSPEND"
+        ? "Catatan tambahan selain alasan suspend..."
+        : "Catatan tambahan tentang domain ini..."
+    }
+    className={`${inputClass} resize-none`}
+  />
+</div>
+
+<div>
+  <label className={labelClass}>Admin Teknis <span className="text-red-500">*</span></label>
+  <input name="adminTeknis" defaultValue={domain?.adminTeknis === "-" ? "" : domain?.adminTeknis} required placeholder="Nama admin teknis" className={inputClass} />
+</div>
 
           <div>
             <label className={labelClass}>Kontak Admin <span className="text-red-500">*</span></label>
