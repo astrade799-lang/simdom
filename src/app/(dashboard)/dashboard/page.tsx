@@ -1,58 +1,127 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = { title: "Dashboard — SIMDOM" }
-export const dynamic = "force-dynamic"
+
+// Ganti force-dynamic dengan revalidate
+// Data refresh tiap 60 detik, bukan tiap request
+export const revalidate = 60
+
+// ✅ Pisahkan data fetching — lebih mudah di-maintain
+async function getDashboardStats() {
+  try {
+    const [
+      totalSkpd,
+      totalDomain,
+      domainAktif,
+      domainTidakAktif,
+      domainSuspend,
+      laporanPending,
+      laporanConfirmed,
+      laporanInstructed,
+      recentLaporan,
+      topSkpd,
+    ] = await Promise.all([
+      prisma.skpd.count(),
+      prisma.webApp.count(),
+      prisma.webApp.count({ where: { status: "AKTIF" } }),
+      prisma.webApp.count({ where: { status: "TIDAK_AKTIF" } }),
+      prisma.webApp.count({ where: { status: "SUSPEND" } }),
+      prisma.activityReport.count({ where: { status: "PENDING" } }),
+      prisma.activityReport.count({ where: { status: "CONFIRMED" } }),
+      prisma.activityReport.count({ where: { status: "INSTRUCTED" } }),
+      prisma.activityReport.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        // ✅ select lebih efisien daripada include
+        select: {
+          id: true,
+          jenisKegiatan: true,
+          status: true,
+          tanggal: true,
+          webApp: {
+            select: {
+              nama: true,
+              skpd: { select: { singkatan: true } },
+            },
+          },
+        },
+      }),
+      prisma.skpd.findMany({
+        take: 5,
+        select: {
+          id: true,
+          singkatan: true,
+          _count: { select: { webApps: true } },
+        },
+        orderBy: { webApps: { _count: "desc" } },
+      }),
+    ])
+
+    return {
+      totalSkpd, totalDomain, domainAktif, domainTidakAktif, domainSuspend,
+      laporanPending, laporanConfirmed, laporanInstructed,
+      recentLaporan, topSkpd,
+      error: null,
+    }
+  } catch (error) {
+    console.error("[DASHBOARD] Failed to fetch stats:", error)
+    // ✅ Return fallback values — halaman tidak crash
+    return {
+      totalSkpd: 0, totalDomain: 0, domainAktif: 0,
+      domainTidakAktif: 0, domainSuspend: 0,
+      laporanPending: 0, laporanConfirmed: 0, laporanInstructed: 0,
+      recentLaporan: [], topSkpd: [],
+      error: "Gagal memuat data. Silakan refresh halaman.",
+    }
+  }
+}
 
 export default async function DashboardPage() {
+  // ✅ Security: validasi session, redirect kalau tidak login
   const session = await auth()
+  if (!session?.user) redirect("/login")
 
-  const [
-    totalSkpd, totalDomain, domainAktif, domainTidakAktif, domainSuspend,
-    laporanPending, laporanConfirmed, laporanInstructed, recentLaporan,
-    topSkpd,
-  ] = await Promise.all([
-    prisma.skpd.count(),
-    prisma.webApp.count(),
-    prisma.webApp.count({ where: { status: "AKTIF" } }),
-    prisma.webApp.count({ where: { status: "TIDAK_AKTIF" } }),
-    prisma.webApp.count({ where: { status: "SUSPEND" } }),
-    prisma.activityReport.count({ where: { status: "PENDING" } }),
-    prisma.activityReport.count({ where: { status: "CONFIRMED" } }),
-    prisma.activityReport.count({ where: { status: "INSTRUCTED" } }),
-    prisma.activityReport.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        webApp: { select: { nama: true, skpd: { select: { singkatan: true } } } },
-      },
-    }),
-    prisma.skpd.findMany({
-      take: 5,
-      include: { _count: { select: { webApps: true } } },
-      orderBy: { webApps: { _count: "desc" } },
-    }),
-  ])
+  const stats = await getDashboardStats()
 
-  const aktifPct = totalDomain > 0 ? Math.round((domainAktif / totalDomain) * 100) : 0
-  const totalLaporan = laporanPending + laporanConfirmed + laporanInstructed
+  const aktifPct = stats.totalDomain > 0
+    ? Math.round((stats.domainAktif / stats.totalDomain) * 100)
+    : 0
+  const totalLaporan = stats.laporanPending + stats.laporanConfirmed + stats.laporanInstructed
 
   return (
     <div className="space-y-6">
+
+      {/* ✅ Error Banner */}
+      {stats.error && (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+          <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
+          </svg>
+          {stats.error}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Selamat datang kembali, <span className="font-semibold text-slate-700">{session?.user.name}</span>
+            Selamat datang kembali,{" "}
+            <span className="font-semibold text-slate-700">
+              {session.user.name ?? "Pengguna"}
+            </span>
           </p>
         </div>
         <div className="text-right hidden sm:block">
           <p className="text-xs text-slate-400">
-            {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {new Date().toLocaleDateString("id-ID", {
+              weekday: "long", day: "numeric",
+              month: "long", year: "numeric",
+            })}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">Diskominfo Kabupaten Soppeng</p>
         </div>
@@ -60,12 +129,11 @@ export default async function DashboardPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
         <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 p-5 text-white shadow-lg shadow-blue-200">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-blue-100 uppercase tracking-wider">Total SKPD</p>
-              <p className="text-4xl font-bold mt-2">{totalSkpd}</p>
+              <p className="text-4xl font-bold mt-2">{stats.totalSkpd}</p>
               <p className="text-xs text-blue-200 mt-1">Satuan Kerja</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
@@ -81,7 +149,7 @@ export default async function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-violet-100 uppercase tracking-wider">Total Domain</p>
-              <p className="text-4xl font-bold mt-2">{totalDomain}</p>
+              <p className="text-4xl font-bold mt-2">{stats.totalDomain}</p>
               <p className="text-xs text-violet-200 mt-1">{aktifPct}% aktif</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
@@ -98,9 +166,9 @@ export default async function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-emerald-100 uppercase tracking-wider">Domain Aktif</p>
-              <p className="text-4xl font-bold mt-2">{domainAktif}</p>
+              <p className="text-4xl font-bold mt-2">{stats.domainAktif}</p>
               <p className="text-xs text-emerald-100 mt-1">
-                {domainSuspend > 0 ? `${domainSuspend} suspend` : "Semua berjalan"}
+                {stats.domainSuspend > 0 ? `${stats.domainSuspend} suspend` : "Semua berjalan"}
               </p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
@@ -113,16 +181,16 @@ export default async function DashboardPage() {
         </div>
 
         <div className={`rounded-2xl p-5 text-white shadow-lg ${
-          laporanPending > 0
+          stats.laporanPending > 0
             ? "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-200"
             : "bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-200"
         }`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-white/80 uppercase tracking-wider">Laporan Pending</p>
-              <p className="text-4xl font-bold mt-2">{laporanPending}</p>
+              <p className="text-4xl font-bold mt-2">{stats.laporanPending}</p>
               <p className="text-xs text-white/70 mt-1">
-                {laporanPending > 0 ? "Perlu konfirmasi" : "Semua selesai"}
+                {stats.laporanPending > 0 ? "Perlu konfirmasi" : "Semua selesai"}
               </p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 relative">
@@ -130,7 +198,7 @@ export default async function DashboardPage() {
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
-              {laporanPending > 0 && (
+              {stats.laporanPending > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"/>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-white"/>
@@ -139,7 +207,6 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Second Row */}
@@ -149,14 +216,15 @@ export default async function DashboardPage() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-bold text-slate-900 mb-1">Status Domain</h3>
           <p className="text-xs text-slate-400 mb-5">Ringkasan kondisi seluruh domain</p>
-
           <div className="space-y-4">
             {[
-              { label: "Aktif", count: domainAktif, color: "bg-emerald-500", light: "bg-emerald-50", text: "text-emerald-700" },
-              { label: "Tidak Aktif", count: domainTidakAktif, color: "bg-slate-300", light: "bg-slate-50", text: "text-slate-500" },
-              { label: "Suspend", count: domainSuspend, color: "bg-red-500", light: "bg-red-50", text: "text-red-600" },
+              { label: "Aktif", count: stats.domainAktif, color: "bg-emerald-500", text: "text-emerald-700" },
+              { label: "Tidak Aktif", count: stats.domainTidakAktif, color: "bg-slate-300", text: "text-slate-500" },
+              { label: "Suspend", count: stats.domainSuspend, color: "bg-red-500", text: "text-red-600" },
             ].map((item) => {
-              const pct = totalDomain > 0 ? Math.round((item.count / totalDomain) * 100) : 0
+              const pct = stats.totalDomain > 0
+                ? Math.round((item.count / stats.totalDomain) * 100)
+                : 0
               return (
                 <div key={item.label}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -170,28 +238,27 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   <div className="h-2 w-full rounded-full bg-slate-100">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-700 ${item.color}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className={`h-2 rounded-full transition-all duration-700 ${item.color}`}
+                      style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               )
             })}
           </div>
-
-          {/* Mini summary */}
           <div className="mt-5 pt-4 border-t border-slate-100 flex gap-1 h-3">
-            {domainAktif > 0 && (
-              <div className="bg-emerald-500 rounded-l-full h-3 transition-all" style={{ width: `${(domainAktif/totalDomain)*100}%` }} />
+            {stats.domainAktif > 0 && (
+              <div className="bg-emerald-500 rounded-l-full h-3"
+                style={{ width: `${(stats.domainAktif / stats.totalDomain) * 100}%` }} />
             )}
-            {domainTidakAktif > 0 && (
-              <div className="bg-slate-300 h-3 transition-all" style={{ width: `${(domainTidakAktif/totalDomain)*100}%` }} />
+            {stats.domainTidakAktif > 0 && (
+              <div className="bg-slate-300 h-3"
+                style={{ width: `${(stats.domainTidakAktif / stats.totalDomain) * 100}%` }} />
             )}
-            {domainSuspend > 0 && (
-              <div className="bg-red-500 rounded-r-full h-3 transition-all" style={{ width: `${(domainSuspend/totalDomain)*100}%` }} />
+            {stats.domainSuspend > 0 && (
+              <div className="bg-red-500 rounded-r-full h-3"
+                style={{ width: `${(stats.domainSuspend / stats.totalDomain) * 100}%` }} />
             )}
-            {domainSuspend === 0 && domainTidakAktif === 0 && (
+            {stats.domainSuspend === 0 && stats.domainTidakAktif === 0 && (
               <div className="bg-emerald-500 rounded-full h-3 w-full" />
             )}
           </div>
@@ -201,12 +268,11 @@ export default async function DashboardPage() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-bold text-slate-900 mb-1">Laporan Aktivitas</h3>
           <p className="text-xs text-slate-400 mb-5">Status penanganan laporan</p>
-
           <div className="space-y-3">
             {[
-              { label: "Pending", count: laporanPending, bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", href: "/dashboard/laporan?status=PENDING" },
-              { label: "Dikonfirmasi", count: laporanConfirmed, bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", href: "/dashboard/laporan?status=CONFIRMED" },
-              { label: "Diberi Instruksi", count: laporanInstructed, bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500", href: "/dashboard/laporan?status=INSTRUCTED" },
+              { label: "Pending", count: stats.laporanPending, bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", href: "/dashboard/laporan?status=PENDING" },
+              { label: "Dikonfirmasi", count: stats.laporanConfirmed, bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", href: "/dashboard/laporan?status=CONFIRMED" },
+              { label: "Diberi Instruksi", count: stats.laporanInstructed, bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500", href: "/dashboard/laporan?status=INSTRUCTED" },
             ].map((item) => (
               <Link key={item.label} href={item.href}
                 className={`flex items-center justify-between rounded-xl px-4 py-3 ${item.bg} hover:opacity-80 transition-opacity`}>
@@ -218,7 +284,6 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-
           {totalLaporan > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-100">
               <p className="text-xs text-slate-400 text-center">{totalLaporan} total laporan tercatat</p>
@@ -235,10 +300,11 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <p className="text-xs text-slate-400 mb-5">Berdasarkan jumlah domain</p>
-
           <div className="space-y-3">
-            {topSkpd.map((skpd, i) => {
-              const pct = totalDomain > 0 ? Math.round((skpd._count.webApps / totalDomain) * 100) : 0
+            {stats.topSkpd.map((skpd, i) => {
+              const pct = stats.totalDomain > 0
+                ? Math.round((skpd._count.webApps / stats.totalDomain) * 100)
+                : 0
               return (
                 <div key={skpd.id} className="flex items-center gap-3">
                   <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
@@ -263,7 +329,6 @@ export default async function DashboardPage() {
             })}
           </div>
         </div>
-
       </div>
 
       {/* Recent Activity */}
@@ -282,7 +347,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {recentLaporan.length === 0 ? (
+        {stats.recentLaporan.length === 0 ? (
           <div className="py-10 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
               <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -293,15 +358,16 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-1">
-            {recentLaporan.map((lap, i) => {
+            {stats.recentLaporan.map((lap, i) => {
               const statusConfig = {
                 PENDING: { bg: "bg-amber-100", text: "text-amber-700", label: "Pending", dot: "bg-amber-500" },
                 CONFIRMED: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Konfirmasi", dot: "bg-emerald-500" },
                 INSTRUCTED: { bg: "bg-blue-100", text: "text-blue-700", label: "Instruksi", dot: "bg-blue-500" },
-              }
+              } as const
               const s = statusConfig[lap.status]
               return (
-                <div key={lap.id} className={`flex items-center gap-4 rounded-xl px-4 py-3 transition-colors hover:bg-slate-50 ${i < recentLaporan.length - 1 ? "" : ""}`}>
+                <div key={lap.id}
+                  className="flex items-center gap-4 rounded-xl px-4 py-3 transition-colors hover:bg-slate-50">
                   <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${s.bg}`}>
                     <div className={`h-2 w-2 rounded-full ${s.dot}`} />
                   </div>
@@ -318,7 +384,9 @@ export default async function DashboardPage() {
                       {s.label}
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      {new Date(lap.tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                      {new Date(lap.tanggal).toLocaleDateString("id-ID", {
+                        day: "numeric", month: "short",
+                      })}
                     </span>
                   </div>
                 </div>
@@ -327,7 +395,6 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
-
     </div>
   )
 }
