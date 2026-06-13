@@ -23,7 +23,7 @@ export function LoginForm() {
 
     const validated = loginSchema.safeParse(raw)
     if (!validated.success) {
-      setError(validated.error.errors[0].message)
+      setError(validated.error.issues[0]?.message ?? "Validasi gagal")
       setIsLoading(false)
       return
     }
