@@ -41,7 +41,9 @@ export async function createLaporan(formData: FormData): Promise<ActionResult> {
       webAppId: formData.get("webAppId") as string,
     }
     const validated = laporanSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
 
     await prisma.activityReport.create({
       data: {
@@ -70,7 +72,9 @@ export async function updateLaporan(id: string, formData: FormData): Promise<Act
       webAppId: formData.get("webAppId") as string,
     }
     const validated = laporanSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
 
     const existing = await prisma.activityReport.findUnique({ where: { id } })
     if (!existing) return { success: false, message: "Laporan tidak ditemukan" }
