@@ -12,25 +12,18 @@ export default async function UsersPage() {
   if (!session?.user) redirect("/login")
   if (session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
-  // ✅ Query paralel
-  const [users, skpds] = await Promise.all([
-    prisma.user.findMany({
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        skpdId: true,
-        createdAt: true,
-        skpd: { select: { nama: true, singkatan: true } },
-      },
-    }),
-    prisma.skpd.findMany({
-      select: { id: true, nama: true, singkatan: true },
-      orderBy: { singkatan: "asc" },
-    }),
-  ])
+ const [users, skpds] = await Promise.all([
+  prisma.user.findMany({
+    orderBy: { createdAt: "asc" },
+    include: {
+      skpd: { select: { nama: true, singkatan: true } },
+    },
+  }),
+  prisma.skpd.findMany({
+    select: { id: true, nama: true, singkatan: true },
+    orderBy: { singkatan: "asc" },
+  }),
+])
 
   return (
     <div>

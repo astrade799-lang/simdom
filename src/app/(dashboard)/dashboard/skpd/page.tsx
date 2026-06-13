@@ -14,14 +14,9 @@ export default async function SkpdPage() {
   if (session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
   const skpds = await prisma.skpd.findMany({
-    orderBy: { nama: "asc" },
-    select: {
-      id: true,
-      nama: true,
-      singkatan: true,
-      _count: { select: { webApps: true } },
-    },
-  })
+  orderBy: { nama: "asc" },
+  include: { _count: { select: { webApps: true } } },
+})
 
   return (
     <div>
