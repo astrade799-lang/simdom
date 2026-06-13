@@ -35,7 +35,9 @@ export async function createSkpd(formData: FormData): Promise<ActionResult> {
       kontak: formData.get("kontak") as string,
     }
     const validated = skpdSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
     await prisma.skpd.create({ data: validated.data })
     revalidatePath("/dashboard/skpd")
     return { success: true, message: "SKPD berhasil ditambahkan" }
@@ -54,7 +56,9 @@ export async function updateSkpd(id: string, formData: FormData): Promise<Action
       kontak: formData.get("kontak") as string,
     }
     const validated = skpdSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
     await prisma.skpd.update({ where: { id }, data: validated.data })
     revalidatePath("/dashboard/skpd")
     return { success: true, message: "SKPD berhasil diperbarui" }

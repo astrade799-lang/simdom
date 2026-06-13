@@ -37,8 +37,9 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       skpdId: (formData.get("skpdId") as string) || null,
     }
     const validated = createUserSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
-
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
     const hashedPassword = await bcrypt.hash(validated.data.password, 12)
     await prisma.user.create({
       data: {
@@ -66,8 +67,9 @@ export async function updateUser(id: string, formData: FormData): Promise<Action
       skpdId: (formData.get("skpdId") as string) || null,
     }
     const validated = updateUserSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
-
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
     await prisma.user.update({
       where: { id },
       data: {
@@ -103,8 +105,9 @@ export async function resetPassword(id: string, formData: FormData): Promise<Act
     await requireSuperAdmin()
     const raw = { password: formData.get("password") as string }
     const validated = resetPasswordSchema.safeParse(raw)
-    if (!validated.success) return { success: false, message: validated.error.errors[0].message }
-
+    if (!validated.success) {
+      return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
+    }
     const hashedPassword = await bcrypt.hash(validated.data.password, 12)
     await prisma.user.update({ where: { id }, data: { password: hashedPassword } })
     return { success: true, message: "Password berhasil direset" }
