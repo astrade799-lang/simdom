@@ -2,10 +2,11 @@ import { z } from "zod"
 
 export const loginSchema = z.object({
   email: z
-    .string({ required_error: "Email wajib diisi" })
+    .string()
+    .min(1, "Email wajib diisi")
     .email("Format email tidak valid"),
   password: z
-    .string({ required_error: "Password wajib diisi" })
+    .string()
     .min(6, "Password minimal 6 karakter"),
 })
 
