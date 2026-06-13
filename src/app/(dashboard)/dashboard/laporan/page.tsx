@@ -56,44 +56,37 @@ export default async function LaporanPage({
     ...(dateRange && { tanggal: dateRange }),
   }
 
-  const [laporans, total, webApps, skpds] = await Promise.all([
-    prisma.activityReport.findMany({
-  where,
-  select: {
-    id: true,
-    jenisKegiatan: true,
-    status: true,
-    tanggal: true,
-    // ❌ hapus: keterangan: true,  → field ini tidak ada di ActivityReport
-    instruksi: true,
-    webApp: {
-      select: {
-        nama: true,
-        url: true,
-        skpd: { select: { nama: true, singkatan: true } },
+ const [laporans, total, webApps, skpds] = await Promise.all([
+  prisma.activityReport.findMany({
+    where,
+    include: {
+      webApp: {
+        select: {
+          nama: true,
+          url: true,
+          skpd: { select: { nama: true, singkatan: true } },
+        },
       },
     },
-  },
-  orderBy: { tanggal: "desc" },
-  skip: (page - 1) * PAGE_SIZE,
-  take: PAGE_SIZE,
-}),
-    prisma.activityReport.count({ where }),
-    // ✅ webApps: hanya ambil yang ada laporan (lebih efisien)
-    prisma.webApp.findMany({
-      select: {
-        id: true,
-        nama: true,
-        url: true,
-        skpd: { select: { singkatan: true } },
-      },
-      orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
-    }),
-    prisma.skpd.findMany({
-      select: { id: true, singkatan: true },
-      orderBy: { singkatan: "asc" },
-    }),
-  ])
+    orderBy: { tanggal: "desc" },
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
+  }),
+  prisma.activityReport.count({ where }),
+  prisma.webApp.findMany({
+    select: {
+      id: true,
+      nama: true,
+      url: true,
+      skpd: { select: { singkatan: true } },
+    },
+    orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
+  }),
+  prisma.skpd.findMany({
+    select: { id: true, singkatan: true },
+    orderBy: { singkatan: "asc" },
+  }),
+])
 
   return (
     <div>
