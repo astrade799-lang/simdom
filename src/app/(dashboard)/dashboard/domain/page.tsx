@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { DomainTable } from "./_components/DomainTable"
+import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import type { WebStatus } from "@prisma/client"
 
 export const metadata: Metadata = { title: "Domain & Subdomain — SIMDOM" }
-export const dynamic = "force-dynamic"
+export const revalidate = 30  // ← ganti force-dynamic
 
 const PAGE_SIZE = 20
 
@@ -15,15 +16,19 @@ export default async function DomainPage({
 }: {
   searchParams: Promise<{ search?: string; status?: string; skpdId?: string; page?: string }>
 }) {
-  const session = await auth()
+  // ✅ Jalankan auth + searchParams PARALEL
+  const [session, params] = await Promise.all([
+    auth(),
+    searchParams,
+  ])
 
-  // ← await searchParams dulu sebelum diakses
-  const params = await searchParams
+  // ✅ Security check
+  if (!session?.user) redirect("/login")
 
-  const search = params.search || ""
-  const status = params.status || ""
-  const skpdId = params.skpdId || ""
-  const page = Math.max(1, parseInt(params.page || "1"))
+  const search = params.search ?? ""
+  const status = params.status ?? ""
+  const skpdId = params.skpdId ?? ""
+  const page = Math.max(1, parseInt(params.page ?? "1"))
 
   const where = {
     ...(search && {
@@ -36,10 +41,19 @@ export default async function DomainPage({
     ...(skpdId && { skpdId }),
   }
 
+  // ✅ Semua query paralel + select lebih spesifik
   const [webApps, total, skpds] = await Promise.all([
     prisma.webApp.findMany({
       where,
-      include: { skpd: { select: { nama: true, singkatan: true } } },
+      select: {
+        id: true,
+        nama: true,
+        url: true,
+        status: true,
+        keterangan: true,
+        skpdId: true,
+        skpd: { select: { nama: true, singkatan: true } },
+      },
       orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -47,7 +61,7 @@ export default async function DomainPage({
     prisma.webApp.count({ where }),
     prisma.skpd.findMany({
       select: { id: true, nama: true, singkatan: true },
-      orderBy: { nama: "asc" },
+      orderBy: { singkatan: "asc" },  // singkatan lebih cepat dari nama
     }),
   ])
 
@@ -64,7 +78,7 @@ export default async function DomainPage({
           total={total}
           page={page}
           pageSize={PAGE_SIZE}
-          userRole={session?.user.role ?? "KABID"}
+          userRole={session.user.role ?? "KABID"}
         />
       </Suspense>
     </div>

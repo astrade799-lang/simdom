@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { redirect } from "next/navigation"
 import { LaporanTable } from "./_components/LaporanTable"
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import type { ActivityStatus } from "@prisma/client"
 
 export const metadata: Metadata = { title: "Laporan Aktivitas — SIMDOM" }
-export const dynamic = "force-dynamic"
+export const revalidate = 30  // ← ganti force-dynamic
 
 const PAGE_SIZE = 20
 
@@ -14,28 +15,13 @@ function buildDateRange(preset: string, dateFrom: string, dateTo: string) {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-  if (preset === "today") {
-    return { gte: today, lte: new Date(today.getTime() + 86400000 - 1) }
-  }
-  if (preset === "week") {
-    const from = new Date(today.getTime() - 6 * 86400000)
-    return { gte: from, lte: new Date(today.getTime() + 86400000 - 1) }
-  }
-  if (preset === "month") {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1)
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
-    return { gte: from, lte: to }
-  }
-  if (preset === "last_month") {
-    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
-    return { gte: from, lte: to }
-  }
-  if (dateFrom || dateTo) {
-    return {
-      ...(dateFrom && { gte: new Date(dateFrom) }),
-      ...(dateTo && { lte: new Date(dateTo + "T23:59:59") }),
-    }
+  if (preset === "today") return { gte: today, lte: new Date(today.getTime() + 86400000 - 1) }
+  if (preset === "week") return { gte: new Date(today.getTime() - 6 * 86400000), lte: new Date(today.getTime() + 86400000 - 1) }
+  if (preset === "month") return { gte: new Date(now.getFullYear(), now.getMonth(), 1), lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) }
+  if (preset === "last_month") return { gte: new Date(now.getFullYear(), now.getMonth() - 1, 1), lte: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59) }
+  if (dateFrom || dateTo) return {
+    ...(dateFrom && { gte: new Date(dateFrom) }),
+    ...(dateTo && { lte: new Date(dateTo + "T23:59:59") }),
   }
   return undefined
 }
@@ -48,18 +34,15 @@ export default async function LaporanPage({
     page?: string; preset?: string; dateFrom?: string; dateTo?: string
   }>
 }) {
-  const session = await auth()
-  const params = await searchParams
+  // ✅ auth + searchParams paralel
+  const [session, params] = await Promise.all([auth(), searchParams])
+  if (!session?.user) redirect("/login")
 
-  const search = params.search || ""
-  const status = params.status || ""
-  const skpdId = params.skpdId || ""
-  const page = Math.max(1, parseInt(params.page || "1"))
-  const preset = params.preset || ""
-  const dateFrom = params.dateFrom || ""
-  const dateTo = params.dateTo || ""
-
-  const dateRange = buildDateRange(preset, dateFrom, dateTo)
+  const search = params.search ?? ""
+  const status = params.status ?? ""
+  const skpdId = params.skpdId ?? ""
+  const page = Math.max(1, parseInt(params.page ?? "1"))
+  const dateRange = buildDateRange(params.preset ?? "", params.dateFrom ?? "", params.dateTo ?? "")
 
   const where = {
     ...(search && {
@@ -75,19 +58,35 @@ export default async function LaporanPage({
 
   const [laporans, total, webApps, skpds] = await Promise.all([
     prisma.activityReport.findMany({
-      where,
-      include: {
-        webApp: {
-          select: { nama: true, url: true, skpd: { select: { nama: true, singkatan: true } } },
-        },
+  where,
+  select: {
+    id: true,
+    jenisKegiatan: true,
+    status: true,
+    tanggal: true,
+    // ❌ hapus: keterangan: true,  → field ini tidak ada di ActivityReport
+    instruksi: true,
+    webApp: {
+      select: {
+        nama: true,
+        url: true,
+        skpd: { select: { nama: true, singkatan: true } },
       },
-      orderBy: { tanggal: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
+    },
+  },
+  orderBy: { tanggal: "desc" },
+  skip: (page - 1) * PAGE_SIZE,
+  take: PAGE_SIZE,
+}),
     prisma.activityReport.count({ where }),
+    // ✅ webApps: hanya ambil yang ada laporan (lebih efisien)
     prisma.webApp.findMany({
-      select: { id: true, nama: true, url: true, skpd: { select: { singkatan: true } } },
+      select: {
+        id: true,
+        nama: true,
+        url: true,
+        skpd: { select: { singkatan: true } },
+      },
       orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
     }),
     prisma.skpd.findMany({
@@ -110,7 +109,7 @@ export default async function LaporanPage({
           total={total}
           page={page}
           pageSize={PAGE_SIZE}
-          userRole={session?.user.role ?? "KABID"}
+          userRole={session.user.role ?? "KABID"}
         />
       </Suspense>
     </div>

@@ -54,26 +54,47 @@ const ICONS: Record<string, React.ReactNode> = {
   ),
 }
 
+// Globe + Shield icon (sama dengan favicon)
+function BrandIcon() {
+  return (
+    <svg viewBox="0 0 32 32" className="h-7 w-7" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#1d4ed8"/>
+      <circle cx="16" cy="14" r="7.5" fill="none" stroke="white" strokeWidth="1.3"/>
+      <line x1="8.5" y1="14" x2="23.5" y2="14" stroke="white" strokeWidth="1.1"/>
+      <ellipse cx="16" cy="14" rx="3.2" ry="7.5" fill="none" stroke="white" strokeWidth="1.1"/>
+      <path d="M10 9.5 Q16 7.5 22 9.5" fill="none" stroke="white" strokeWidth="1"/>
+      <path d="M10 18.5 Q16 20.5 22 18.5" fill="none" stroke="white" strokeWidth="1"/>
+      <path d="M20 18 L20 24.5 Q20 26.5 23.5 27.5 Q27 26.5 27 24.5 L27 18 Z" fill="#1e40af" stroke="white" strokeWidth="1.2" strokeLinejoin="round"/>
+      <polyline points="21.5,22.5 23,24 25.5,21" fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 export function Sidebar({ userName, userRole }: SidebarProps) {
   const pathname = usePathname()
   const navItems = getNavByRole(userRole)
 
   return (
-    <aside className="flex h-screen w-60 flex-col border-r border-slate-100 bg-white">
+    <aside className="flex h-screen w-60 flex-col bg-slate-900">
 
       {/* Brand */}
-      <div className="flex items-center gap-3 px-5 h-[60px] border-b border-slate-100 flex-shrink-0">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600">
-          <span className="text-xs font-bold text-white">S</span>
-        </div>
+      <div className="flex items-center gap-3 px-5 h-[60px] border-b border-slate-700/50 flex-shrink-0">
+        <BrandIcon />
         <div>
-          <p className="text-sm font-semibold text-slate-900 leading-none">SIMDOM</p>
+          <p className="text-sm font-bold text-white leading-none tracking-wide">SIMDOM</p>
           <p className="text-[10px] text-slate-400 mt-0.5">Diskominfo Soppeng</p>
         </div>
       </div>
 
+      {/* Nav label */}
+      <div className="px-4 pt-5 pb-1">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          Menu Utama
+        </p>
+      </div>
+
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
@@ -84,38 +105,42 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors relative ${
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all relative ${
                 isActive
-                  ? "bg-blue-50 text-blue-700 font-medium"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-normal"
+                  ? "bg-blue-600 text-white font-medium shadow-lg shadow-blue-900/30"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white font-normal"
               }`}
             >
-              {isActive && (
-                <span className="absolute left-0 inset-y-1.5 w-0.5 bg-blue-600 rounded-r-full" />
-              )}
-              <span className={isActive ? "text-blue-600" : "text-slate-400"}>
+              <span className={isActive ? "text-white" : "text-slate-500"}>
                 {ICONS[item.icon]}
               </span>
               {item.label}
+              {/* Active dot indicator */}
+              {isActive && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-300" />
+              )}
             </Link>
           )
         })}
       </nav>
 
+      {/* Divider */}
+      <div className="mx-4 border-t border-slate-700/50" />
+
       {/* User */}
-      <div className="border-t border-slate-100 p-3 space-y-1">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg">
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+      <div className="p-3 space-y-1">
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-slate-800/50">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-blue-500/30">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-slate-800">{userName}</p>
-            <p className="text-[10px] text-slate-400">{ROLE_LABEL[userRole]}</p>
+            <p className="truncate text-xs font-semibold text-slate-200">{userName}</p>
+            <p className="text-[10px] text-slate-500">{ROLE_LABEL[userRole]}</p>
           </div>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -125,6 +150,7 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
           Keluar
         </button>
       </div>
+
     </aside>
   )
 }

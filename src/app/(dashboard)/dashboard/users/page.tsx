@@ -5,11 +5,14 @@ import { UserTable } from "./_components/UserTable"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = { title: "Manajemen User — SIMDOM" }
+export const revalidate = 30
 
 export default async function UsersPage() {
   const session = await auth()
-  if (session?.user.role !== "SUPER_ADMIN") redirect("/dashboard")
+  if (!session?.user) redirect("/login")
+  if (session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
+  // ✅ Query paralel
   const [users, skpds] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "asc" },
@@ -25,7 +28,7 @@ export default async function UsersPage() {
     }),
     prisma.skpd.findMany({
       select: { id: true, nama: true, singkatan: true },
-      orderBy: { nama: "asc" },
+      orderBy: { singkatan: "asc" },
     }),
   ])
 
@@ -38,7 +41,7 @@ export default async function UsersPage() {
       <UserTable
         users={users}
         skpds={skpds}
-        currentUserId={session!.user.id}
+        currentUserId={session.user.id}
       />
     </div>
   )
