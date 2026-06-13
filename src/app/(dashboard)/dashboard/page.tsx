@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Dashboard — SIMDOM" }
 
 // Ganti force-dynamic dengan revalidate
 // Data refresh tiap 60 detik, bukan tiap request
-export const revalidate = 60
+export const dynamic = "force-dynamic"
 
 // ✅ Pisahkan data fetching — lebih mudah di-maintain
 async function getDashboardStats() {
