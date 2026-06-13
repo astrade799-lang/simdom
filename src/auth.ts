@@ -40,14 +40,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id as string
         token.role = user.role as Role
-        token.skpdId = user.skpdId as string | null
+        token.skpdId = (user.skpdId as string | null) ?? null
       }
       return token
     },
     session({ session, token }) {
-      session.user.id = token.id
-      session.user.role = token.role
-      session.user.skpdId = token.skpdId
+      session.user.id = token.id as string
+      session.user.role = token.role as Role
+      session.user.skpdId = token.skpdId as string | null
       return session
     },
   },
