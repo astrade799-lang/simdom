@@ -41,29 +41,22 @@ export default async function DomainPage({
     ...(skpdId && { skpdId }),
   }
 
-  // ✅ Semua query paralel + select lebih spesifik
   const [webApps, total, skpds] = await Promise.all([
-    prisma.webApp.findMany({
-      where,
-      select: {
-        id: true,
-        nama: true,
-        url: true,
-        status: true,
-        keterangan: true,
-        skpdId: true,
-        skpd: { select: { nama: true, singkatan: true } },
-      },
-      orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.webApp.count({ where }),
-    prisma.skpd.findMany({
-      select: { id: true, nama: true, singkatan: true },
-      orderBy: { singkatan: "asc" },  // singkatan lebih cepat dari nama
-    }),
-  ])
+  prisma.webApp.findMany({
+    where,
+    include: {
+      skpd: { select: { nama: true, singkatan: true } },
+    },
+    orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
+  }),
+  prisma.webApp.count({ where }),
+  prisma.skpd.findMany({
+    select: { id: true, nama: true, singkatan: true },
+    orderBy: { singkatan: "asc" },
+  }),
+])
 
   return (
     <div>
