@@ -6,6 +6,7 @@ import { deleteDomain } from "@/actions/domain"
 import { StatusBadge } from "@/components/ui/Badge"
 import { DomainModal } from "./DomainModal"
 import { DomainDetailModal } from "./DomainDetailModal"
+import { ImportDomainModal } from "./ImportDomainModal"
 import type { WebStatus, Role } from "@prisma/client"
 
 type WebApp = {
@@ -54,10 +55,12 @@ export function DomainTable({
   const [isDeleting, setIsDeleting] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
   const [searchInput, setSearchInput] = useState(currentSearch)
+  
 
   // di dalam komponen:
 const [detailDomain, setDetailDomain] = useState<WebApp | null>(null)
 const [isDetailOpen, setIsDetailOpen] = useState(false)
+const [isImportOpen, setIsImportOpen] = useState(false)
 
   const totalPages = Math.ceil(total / pageSize)
   const canEdit = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
@@ -155,7 +158,7 @@ function handleReset() {
 
         {/* Reset */}
         {hasFilter && (
-          <button onClick={handleReset} className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+          <button onClick={handleReset} className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
             Reset
           </button>
         )}
@@ -180,6 +183,18 @@ function handleReset() {
             Tambah Domain
           </button>
         )}
+        {/* Tombol Import Excel */}
+{canEdit && (
+  <button
+    onClick={() => setIsImportOpen(true)}
+    className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors whitespace-nowrap"
+  >
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+    </svg>
+    Import Excel
+  </button>
+)}
       </div>
 
       {/* Table */}
@@ -339,6 +354,12 @@ function handleReset() {
   isOpen={isDetailOpen}
   onClose={() => setIsDetailOpen(false)}
   domain={detailDomain}
+/>
+
+<ImportDomainModal
+  isOpen={isImportOpen}
+  onClose={() => setIsImportOpen(false)}
+  skpds={skpds}
 />
 
       <DomainModal

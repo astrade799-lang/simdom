@@ -118,3 +118,55 @@ export async function deleteDomain(id: string): Promise<ActionResult> {
     return handleError(error)
   }
 }
+
+export async function importDomains(formData: FormData): Promise<{
+  imported: number
+  skipped: number
+  errors: string[]
+}> {
+  try {
+    await requireAdminOrAbove()
+    const raw = JSON.parse(formData.get("data") as string) as Array<{
+      nama: string
+      url: string
+      skpdId: string
+      status: string
+      keterangan: string
+    }>
+
+    let imported = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    for (const item of raw) {
+      try {
+        // Cek duplikat URL
+        const existing = await prisma.webApp.findUnique({
+          where: { url: item.url },
+        })
+        if (existing) { skipped++; continue }
+
+        await prisma.webApp.create({
+          data: {
+            nama: item.nama,
+            url: item.url,
+            skpdId: item.skpdId,
+            status: item.status as WebStatus,
+            keterangan: item.keterangan || null,
+            adminTeknis: "-",
+            kontakAdmin: "-",
+          },
+        })
+        imported++
+      } catch {
+        errors.push(`Gagal import: ${item.url}`)
+      }
+    }
+
+    revalidatePath("/dashboard/domain")
+    revalidatePath("/dashboard")
+    return { imported, skipped, errors }
+  } catch {
+    return { imported: 0, skipped: 0, errors: ["Terjadi kesalahan saat import"] }
+  }
+}
