@@ -6,9 +6,8 @@ import type { Metadata } from "next"
 
 export const metadata: Metadata = { title: "Dashboard — SIMDOM" }
 
-// Ganti force-dynamic dengan revalidate
-// Data refresh tiap 60 detik, bukan tiap request
 export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
 
 // ✅ Pisahkan data fetching — lebih mudah di-maintain
 async function getDashboardStats() {
