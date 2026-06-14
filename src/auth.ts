@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { loginSchema } from "@/lib/validations/auth"
 import type { Role } from "@prisma/client"
 
+export const dynamic = "force-dynamic"
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
