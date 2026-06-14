@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Modal } from "@/components/ui/Modal"
 import { createLaporan, updateLaporan } from "@/actions/laporan"
+import { ImageUpload } from "@/components/ui/ImageUpload"
 import type { ActivityStatus } from "@prisma/client"
 
 type Laporan = {
@@ -12,6 +13,7 @@ type Laporan = {
   tanggal: Date
   status: ActivityStatus
   webAppId: string
+  buktiUrl?: string | null
 }
 
 type WebAppOption = {
@@ -35,24 +37,35 @@ function formatDate(date: Date): string {
 export function LaporanModal({ isOpen, onClose, laporan, webApps }: LaporanModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [buktiUrl, setBuktiUrl] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const isEdit = !!laporan
 
   useEffect(() => {
-    if (isOpen) setError(null)
-  }, [isOpen])
+    if (isOpen) {
+      setError(null)
+      setBuktiUrl(laporan?.buktiUrl ?? null)
+    }
+  }, [isOpen, laporan])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
+
     const formData = new FormData(e.currentTarget)
+
+    // Tambah buktiUrl ke formData
+    if (buktiUrl) formData.set("buktiUrl", buktiUrl)
+
     const result = isEdit
       ? await updateLaporan(laporan.id, formData)
       : await createLaporan(formData)
+
     setIsLoading(false)
     if (!result.success) { setError(result.message); return }
     formRef.current?.reset()
+    setBuktiUrl(null)
     onClose()
   }
 
@@ -112,11 +125,32 @@ export function LaporanModal({ isOpen, onClose, laporan, webApps }: LaporanModal
           />
         </div>
 
+        {/* Upload Bukti */}
+        <div>
+          <label className={labelClass}>
+            Bukti Kegiatan
+            <span className="ml-1 text-xs font-normal text-gray-400">(opsional)</span>
+          </label>
+          <ImageUpload
+            value={buktiUrl}
+            onChange={setBuktiUrl}
+            disabled={isLoading}
+          />
+        </div>
+
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
             Batal
           </button>
-          <button type="submit" disabled={isLoading} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-colors">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+          >
             {isLoading ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Tambah Laporan"}
           </button>
         </div>

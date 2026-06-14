@@ -1,35 +1,20 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  // Security Headers
-  async headers() {
-    return [
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",  // ← Fix 1: naikkan limit upload
+    },
+  },
+  images: {
+    remotePatterns: [
       {
-        source: "/(.*)",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
-          },
-        ],
+        protocol: "https",
+        hostname: "rzofrnlylwvlfjvxfems.supabase.co",  // ← Fix 3: izinkan gambar dari Supabase
+        pathname: "/storage/v1/object/public/**",
       },
-    ]
+    ],
   },
-
-  // Logging untuk production
-  logging: {
-    fetches: { fullUrl: false },
-  },
-
-  // Compress output
-  compress: true,
-
-  // Power by header
-  poweredByHeader: false,
 }
 
 export default nextConfig

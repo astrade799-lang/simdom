@@ -8,6 +8,7 @@ import { LaporanModal } from "./LaporanModal"
 import { KonfirmasiModal } from "./KonfirmasiModal"
 import type { ActivityStatus, Role } from "@prisma/client"
 import * as XLSX from "xlsx"
+import { LaporanDetailModal } from "./LaporanDetailModal"
 
 type Laporan = {
   id: string
@@ -16,6 +17,7 @@ type Laporan = {
   tanggal: Date
   status: ActivityStatus
   instruksi: string | null
+  buktiUrl?: string | null
   webAppId: string
   webApp: {
     nama: string
@@ -79,6 +81,7 @@ export function LaporanTable({
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const totalPages = Math.ceil(total / pageSize)
   const canEdit = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
@@ -328,6 +331,17 @@ export function LaporanTable({
                             Tindakan
                           </button>
                         )}
+                        {/* Tombol Lihat Detail */}
+<button
+  onClick={() => { setSelectedLaporan(lap); setIsDetailOpen(true) }}
+  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+  title="Lihat Detail"
+>
+  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+  </svg>
+</button>
                         {canEdit && lap.status === "PENDING" && (
                           <button
                             onClick={() => { setSelectedLaporan(lap); setIsModalOpen(true) }}
@@ -418,6 +432,11 @@ export function LaporanTable({
         onClose={() => setIsKonfirmasiOpen(false)}
         laporan={selectedLaporan}
       />
+      <LaporanDetailModal
+  isOpen={isDetailOpen}
+  onClose={() => setIsDetailOpen(false)}
+  laporan={selectedLaporan}
+/>
     </>
   )
 }

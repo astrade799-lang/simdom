@@ -52,6 +52,7 @@ export async function createLaporan(formData: FormData): Promise<ActionResult> {
         tanggal: new Date(validated.data.tanggal),
         webAppId: validated.data.webAppId,
         createdById: session.user.id,
+        buktiUrl: (formData.get("buktiUrl") as string) || null,
       },
     })
     revalidatePath("/dashboard/laporan")
@@ -87,6 +88,7 @@ export async function updateLaporan(id: string, formData: FormData): Promise<Act
         deskripsi: validated.data.deskripsi,
         tanggal: new Date(validated.data.tanggal),
         webAppId: validated.data.webAppId,
+        buktiUrl: (formData.get("buktiUrl") as string) || null,
       },
     })
     revalidatePath("/dashboard/laporan")
