@@ -56,7 +56,7 @@ export default async function LaporanPage({
     ...(dateRange && { tanggal: dateRange }),
   }
 
- const [laporans, total, webApps, skpds] = await Promise.all([
+ const [laporans, total, webApps, skpds, kabid, pembuat] = await Promise.all([
   prisma.activityReport.findMany({
     where,
     include: {
@@ -86,6 +86,14 @@ export default async function LaporanPage({
     select: { id: true, singkatan: true },
     orderBy: { singkatan: "asc" },
   }),
+  prisma.user.findFirst({
+    where: { role: "KABID" },
+    select: { namaLengkap: true, nip: true, name: true },
+  }),
+  prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { namaLengkap: true, nip: true, name: true },
+  }),
 ])
 
   return (
@@ -103,6 +111,8 @@ export default async function LaporanPage({
           page={page}
           pageSize={PAGE_SIZE}
           userRole={session.user.role ?? "KABID"}
+          kabid={kabid}
+          pembuat={pembuat} 
         />
       </Suspense>
     </div>

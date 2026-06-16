@@ -48,6 +48,8 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
         password: hashedPassword,
         role: validated.data.role,
         skpdId: validated.data.skpdId || null,
+        namaLengkap: (formData.get("namaLengkap") as string) || null,
+        nip: (formData.get("nip") as string) || null,
       },
     })
     revalidatePath("/dashboard/users")
@@ -77,6 +79,8 @@ export async function updateUser(id: string, formData: FormData): Promise<Action
         email: validated.data.email,
         role: validated.data.role,
         skpdId: validated.data.skpdId || null,
+        namaLengkap: (formData.get("namaLengkap") as string) || null,
+        nip: (formData.get("nip") as string) || null,
       },
     })
     revalidatePath("/dashboard/users")

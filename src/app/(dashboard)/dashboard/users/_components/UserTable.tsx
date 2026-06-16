@@ -9,6 +9,8 @@ import type { Role } from "@prisma/client"
 type User = {
   id: string
   name: string
+  namaLengkap: string | null  // ← TAMBAH
+  nip: string | null          // ← TAMBAH
   email: string
   role: Role
   skpdId: string | null

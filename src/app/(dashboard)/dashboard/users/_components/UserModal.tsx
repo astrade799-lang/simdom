@@ -8,6 +8,8 @@ import type { Role } from "@prisma/client"
 type User = {
   id: string
   name: string
+  namaLengkap: string | null  // ← TAMBAH
+  nip: string | null          // ← TAMBAH
   email: string
   role: Role
   skpdId: string | null
@@ -54,20 +56,68 @@ export function UserModal({ isOpen, onClose, user, skpds }: UserModalProps) {
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
 
+        {/* Username / display name */}
         <div>
-          <label className={labelClass}>Nama Lengkap <span className="text-red-500">*</span></label>
-          <input name="name" defaultValue={user?.name} required placeholder="Nama lengkap" className={inputClass} />
+          <label className={labelClass}>Username <span className="text-red-500">*</span></label>
+          <input
+            name="name"
+            defaultValue={user?.name}
+            required
+            placeholder="Username untuk login"
+            className={inputClass}
+          />
+        </div>
+
+        {/* Nama Lengkap */}
+        <div>
+          <label className={labelClass}>
+            Nama Lengkap
+            <span className="ml-1 text-xs font-normal text-gray-400">(untuk laporan)</span>
+          </label>
+          <input
+            name="namaLengkap"
+            defaultValue={user?.namaLengkap ?? ""}
+            placeholder="Nama lengkap sesuai jabatan"
+            className={inputClass}
+          />
+        </div>
+
+        {/* NIP */}
+        <div>
+          <label className={labelClass}>
+            NIP
+            <span className="ml-1 text-xs font-normal text-gray-400">(untuk laporan)</span>
+          </label>
+          <input
+            name="nip"
+            defaultValue={user?.nip ?? ""}
+            placeholder="Nomor Induk Pegawai"
+            className={inputClass}
+          />
         </div>
 
         <div>
           <label className={labelClass}>Email <span className="text-red-500">*</span></label>
-          <input name="email" type="email" defaultValue={user?.email} required placeholder="email@soppeng.go.id" className={inputClass} />
+          <input
+            name="email"
+            type="email"
+            defaultValue={user?.email}
+            required
+            placeholder="email@soppeng.go.id"
+            className={inputClass}
+          />
         </div>
 
         {!isEdit && (
           <div>
             <label className={labelClass}>Password <span className="text-red-500">*</span></label>
-            <input name="password" type="password" required placeholder="Minimal 8 karakter" className={inputClass} />
+            <input
+              name="password"
+              type="password"
+              required
+              placeholder="Minimal 8 karakter"
+              className={inputClass}
+            />
           </div>
         )}
 
@@ -91,7 +141,9 @@ export function UserModal({ isOpen, onClose, user, skpds }: UserModalProps) {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Batal</button>
+          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            Batal
+          </button>
           <button type="submit" disabled={isLoading} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-colors">
             {isLoading ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Tambah User"}
           </button>
