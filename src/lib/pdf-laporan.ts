@@ -7,6 +7,7 @@ type LaporanItem = {
   tanggal: Date
   status: ActivityStatus
   instruksi: string | null
+  buktiUrl?: string | null  // ← TAMBAH
   webApp: {
     nama: string
     url: string
@@ -31,6 +32,32 @@ type UserInfo = {
   nip: string | null
   name: string
 } | null
+
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return null
+    const blob = await response.blob()
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+// Ambil dimensi asli gambar agar tidak gepeng saat di-render
+function getImageDimensions(base64: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.width, height: img.height })
+    img.onerror = () => resolve({ width: 800, height: 600 })
+    img.src = base64
+  })
+}
 
 export async function generateLaporanPDF(
   laporans: LaporanItem[],
@@ -220,6 +247,115 @@ if (hasTTD && finalY < doc.internal.pageSize.getHeight() - 60) {
     doc.text(`NIP. ${nipKabid}`, rightX, finalY + 42, { align: "center" })
   }
 }
+
+// ── LAMPIRAN FOTO BUKTI KEGIATAN ──────────────────────────────────
+  const laporansWithPhoto = laporans.filter((l) => l.buktiUrl)
+
+  if (laporansWithPhoto.length > 0) {
+    for (let i = 0; i < laporansWithPhoto.length; i++) {
+      const lap = laporansWithPhoto[i]
+      doc.addPage()
+
+      // Header halaman lampiran
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(11)
+      doc.text("LAMPIRAN FOTO BUKTI KEGIATAN", pageWidth / 2, 18, { align: "center" })
+
+      doc.setLineWidth(0.3)
+      doc.setDrawColor(200)
+      doc.line(margin, 22, pageWidth - margin, 22)
+
+      // ── Info kegiatan (sinkron dengan tabel laporan) ──
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+      doc.text(`${i + 1}. ${lap.jenisKegiatan}`, margin, 32)
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.text(`Domain    : ${lap.webApp.nama} (${lap.webApp.skpd.singkatan})`, margin, 39)
+      doc.text(`Tanggal   : ${new Date(lap.tanggal).toLocaleDateString("id-ID", {
+        day: "numeric", month: "long", year: "numeric",
+      })}`, margin, 45)
+      doc.text(`Status    : ${STATUS_LABEL[lap.status]}`, margin, 51)
+
+      if (lap.instruksi) {
+        doc.text(`Instruksi : ${lap.instruksi}`, margin, 57)
+      }
+
+      // Garis pemisah sebelum foto
+      doc.setLineWidth(0.2)
+      doc.setDrawColor(220)
+      doc.line(margin, 63, pageWidth - margin, 63)
+
+      // ── Load & tampilkan foto ──
+      try {
+        const photoData = await loadImageAsBase64(lap.buktiUrl!)
+
+        if (photoData) {
+          const { width: imgW, height: imgH } = await getImageDimensions(photoData)
+          const aspectRatio = imgW / imgH
+
+          // Area maksimal foto di halaman
+          const maxWidth = pageWidth - margin * 2
+          const maxHeight = doc.internal.pageSize.getHeight() - 100 // sisakan ruang bawah
+
+          let drawWidth = maxWidth
+          let drawHeight = drawWidth / aspectRatio
+
+          if (drawHeight > maxHeight) {
+            drawHeight = maxHeight
+            drawWidth = drawHeight * aspectRatio
+          }
+
+          const drawX = (pageWidth - drawWidth) / 2
+          const drawY = 70
+
+          // Border foto
+          doc.setDrawColor(220)
+          doc.setLineWidth(0.3)
+          doc.rect(drawX - 1, drawY - 1, drawWidth + 2, drawHeight + 2)
+
+          doc.addImage(photoData, "JPEG", drawX, drawY, drawWidth, drawHeight)
+
+          // Caption di bawah foto
+          doc.setFont("helvetica", "italic")
+          doc.setFontSize(8)
+          doc.setTextColor(120)
+          doc.text(
+            `Foto bukti kegiatan: ${lap.jenisKegiatan}`,
+            pageWidth / 2,
+            drawY + drawHeight + 8,
+            { align: "center" }
+          )
+          doc.setTextColor(0)
+        } else {
+          doc.setFont("helvetica", "italic")
+          doc.setFontSize(9)
+          doc.setTextColor(150)
+          doc.text("(Foto tidak dapat dimuat)", pageWidth / 2, 100, { align: "center" })
+          doc.setTextColor(0)
+        }
+      } catch {
+        doc.setFont("helvetica", "italic")
+        doc.setFontSize(9)
+        doc.setTextColor(150)
+        doc.text("(Foto tidak dapat dimuat)", pageWidth / 2, 100, { align: "center" })
+        doc.setTextColor(0)
+      }
+
+      // Footer halaman lampiran
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(120)
+      doc.text(
+        `Lampiran ${i + 1} dari ${laporansWithPhoto.length}  —  SIMDOM Diskominfo Kabupaten Soppeng`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 8,
+        { align: "center" }
+      )
+      doc.setTextColor(0)
+    }
+  }
 
   // ── SAVE ─────────────────────────────────────────────────────────
   const filename = `Laporan_Aktivitas_${periode.replace(/\s+/g, "_")}_SIMDOM.pdf`
