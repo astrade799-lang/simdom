@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { domainSchema } from "@/lib/validations/domain"
 import { revalidatePath } from "next/cache"
+import type { WebStatus, Role } from "@prisma/client"
 
 type ActionResult = { success: boolean; message: string }
 
