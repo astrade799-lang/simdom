@@ -166,7 +166,7 @@ export function ImportDomainModal({ isOpen, onClose, skpds }: ImportDomainModalP
             {/* Download template */}
             <div className="flex items-center justify-center">
               
-                <a ahref="/template_import_domain.xlsx"
+                <a href="/template_import_domain.xlsx"
                 download
                 className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
               >
