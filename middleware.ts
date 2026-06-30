@@ -8,9 +8,46 @@ const SUPER_ADMIN_ONLY = ["/dashboard/users", "/dashboard/skpd"]
 
 type AuthRequest = NextRequest & { auth: Session | null }
 
+// ── Rate Limiting ─────────────────────────────────────────────
+const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+const WINDOW_MS = 15 * 60 * 1000  // 15 menit
+const MAX_ATTEMPTS = 10            // 10 percobaan per 15 menit
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const record = loginAttempts.get(ip)
+
+  if (record) {
+    if (now > record.resetAt) {
+      loginAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
+      return true
+    }
+    record.count++
+    if (record.count > MAX_ATTEMPTS) return false
+  } else {
+    loginAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
+  }
+  return true
+}
+// ─────────────────────────────────────────────────────────────
+
 export default auth((req: AuthRequest) => {
   const { pathname } = req.nextUrl
   const session = req.auth
+
+  // ── Cek rate limit untuk endpoint login ──
+  if (pathname === "/api/auth/callback/credentials") {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? req.headers.get("x-real-ip")
+      ?? "unknown"
+
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit." },
+        { status: 429 }
+      )
+    }
+  }
 
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
 
