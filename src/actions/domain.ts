@@ -12,12 +12,14 @@ async function requireAdminOrAbove() {
   const session = await auth()
   if (!session) throw new Error("UNAUTHORIZED")
   if (session.user.role === "KABID") throw new Error("FORBIDDEN")
+  return session
 }
 
 async function requireSuperAdmin() {
   const session = await auth()
   if (!session) throw new Error("UNAUTHORIZED")
   if (session.user.role !== "SUPER_ADMIN") throw new Error("FORBIDDEN")
+  return session
 }
 
 function handleError(error: unknown): ActionResult {
@@ -51,6 +53,47 @@ function parseFormData(formData: FormData) {
   }
 }
 
+// ── Helper catat history ────────────────────────────────────
+async function recordHistory(
+  webAppId: string,
+  userId: string,
+  userName: string,
+  action: string,
+  changes: { field: string; oldValue: string | null; newValue: string | null }[]
+) {
+  if (changes.length === 0) return
+
+  await prisma.domainHistory.createMany({
+    data: changes.map((c) => ({
+      webAppId,
+      userId,
+      userName,
+      action,
+      fieldName: c.field,
+      oldValue: c.oldValue,
+      newValue: c.newValue,
+    })),
+  })
+}
+
+// Label field yang mudah dibaca
+const FIELD_LABELS: Record<string, string> = {
+  nama: "Nama Aplikasi",
+  url: "URL Domain",
+  status: "Status",
+  skpdId: "SKPD",
+  adminTeknis: "Admin Teknis",
+  kontakAdmin: "Kontak Admin",
+  vendor: "Vendor",
+  kontakVendor: "Kontak Vendor",
+  platform: "Platform",
+  keterangan: "Keterangan",
+  alasanSuspend: "Alasan Suspend",
+  tanggalAktif: "Tanggal Aktif",
+  tanggalExpired: "Tanggal Expired",
+}
+// ───────────────────────────────────────────────────────────
+
 export async function createDomain(formData: FormData): Promise<ActionResult> {
   try {
     await requireAdminOrAbove()
@@ -81,7 +124,7 @@ export async function createDomain(formData: FormData): Promise<ActionResult> {
 
 export async function updateDomain(id: string, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminOrAbove()
+    const session = await requireAdminOrAbove()
     const raw = parseFormData(formData)
     const validated = domainSchema.safeParse(raw)
     if (!validated.success) {
@@ -90,17 +133,49 @@ export async function updateDomain(id: string, formData: FormData): Promise<Acti
 
     const { tanggalAktif, tanggalExpired, alasanSuspend, keterangan, status, ...rest } = validated.data
 
-    await prisma.webApp.update({
-      where: { id },
-      data: {
-        ...rest,
-        status,
-        keterangan: keterangan ?? null,
-        alasanSuspend: status !== "SUSPEND" ? null : alasanSuspend ?? null,
-        tanggalAktif: tanggalAktif ? new Date(tanggalAktif) : null,
-        tanggalExpired: tanggalExpired ? new Date(tanggalExpired) : null,
-      },
-    })
+    // ── Ambil data lama untuk perbandingan ──
+    const existing = await prisma.webApp.findUnique({ where: { id } })
+    if (!existing) return { success: false, message: "Domain tidak ditemukan" }
+
+    const newData = {
+      ...rest,
+      status,
+      keterangan: keterangan ?? null,
+      alasanSuspend: status !== "SUSPEND" ? null : alasanSuspend ?? null,
+      tanggalAktif: tanggalAktif ? new Date(tanggalAktif) : null,
+      tanggalExpired: tanggalExpired ? new Date(tanggalExpired) : null,
+    }
+
+    await prisma.webApp.update({ where: { id }, data: newData })
+
+    // ── Catat field yang berubah ──
+    const changes: { field: string; oldValue: string | null; newValue: string | null }[] = []
+
+    const fieldsToCheck: (keyof typeof newData)[] = [
+      "nama", "url", "status", "adminTeknis", "kontakAdmin",
+      "vendor", "kontakVendor", "platform", "keterangan", "alasanSuspend",
+    ]
+
+    for (const field of fieldsToCheck) {
+      const oldVal = String(existing[field] ?? "")
+      const newVal = String(newData[field] ?? "")
+      if (oldVal !== newVal) {
+        changes.push({
+          field: FIELD_LABELS[field] ?? field,
+          oldValue: existing[field] ? String(existing[field]) : null,
+          newValue: newData[field] ? String(newData[field]) : null,
+        })
+      }
+    }
+
+    await recordHistory(
+      id,
+      session!.user.id,
+      session!.user.name ?? "Unknown",
+      "UPDATE",
+      changes
+    )
+
     revalidatePath("/dashboard/domain")
     return { success: true, message: "Domain berhasil diperbarui" }
   } catch (error) {
@@ -110,9 +185,29 @@ export async function updateDomain(id: string, formData: FormData): Promise<Acti
 
 export async function deleteDomain(id: string): Promise<ActionResult> {
   try {
-    await requireSuperAdmin()
+    const session = await requireSuperAdmin()
+
+    // Ambil nama domain sebelum dihapus
+    const existing = await prisma.webApp.findUnique({
+      where: { id },
+      select: { nama: true, url: true },
+    })
+
+    // Catat history sebelum hapus
+    if (existing) {
+      await recordHistory(
+        id,
+        session!.user.id,
+        session!.user.name ?? "Unknown",
+        "DELETE",
+        [{ field: "Domain", oldValue: `${existing.nama} (${existing.url})`, newValue: null }]
+      )
+    }
+
     await prisma.activityReport.deleteMany({ where: { webAppId: id } })
+    await prisma.domainHistory.deleteMany({ where: { webAppId: id } })
     await prisma.webApp.delete({ where: { id } })
+
     revalidatePath("/dashboard/domain")
     return { success: true, message: "Domain berhasil dihapus" }
   } catch (error) {
@@ -141,10 +236,7 @@ export async function importDomains(formData: FormData): Promise<{
 
     for (const item of raw) {
       try {
-        // Cek duplikat URL
-        const existing = await prisma.webApp.findUnique({
-          where: { url: item.url },
-        })
+        const existing = await prisma.webApp.findUnique({ where: { url: item.url } })
         if (existing) { skipped++; continue }
 
         await prisma.webApp.create({

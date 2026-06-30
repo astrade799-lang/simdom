@@ -70,7 +70,8 @@ model WebApp {
   tanggalExpired DateTime?
   skpdId         String
   skpd           Skpd             @relation(fields: [skpdId], references: [id])
-  activities     ActivityReport[]
+   activities     ActivityReport[]
+  histories      DomainHistory[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -96,4 +97,20 @@ model ActivityReport {
   @@index([webAppId])
   @@index([status])
   @@index([tanggal])
+}
+
+model DomainHistory {
+  id          String   @id @default(cuid())
+  webAppId    String
+  webApp      WebApp   @relation(fields: [webAppId], references: [id], onDelete: Cascade)
+  userId      String
+  userName    String
+  action      String   // "UPDATE" | "STATUS_CHANGE" | "DELETE"
+  fieldName   String?  // field apa yang berubah
+  oldValue    String?  // nilai lama
+  newValue    String?  // nilai baru
+  createdAt   DateTime @default(now())
+
+  @@index([webAppId])
+  @@index([createdAt])
 }
