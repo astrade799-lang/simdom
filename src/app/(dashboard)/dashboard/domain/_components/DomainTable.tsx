@@ -15,7 +15,7 @@ type WebApp = {
   url: string
   status: WebStatus
   alasanSuspend: string | null
-  keterangan: string | null        // ← tambahkan
+  keterangan: string | null
   adminTeknis: string
   kontakAdmin: string
   vendor: string | null
@@ -25,6 +25,11 @@ type WebApp = {
   tanggalExpired: Date | null
   skpdId: string
   skpd: { nama: string; singkatan: string }
+  checks: {          // ← TAMBAH
+    isOnline: boolean
+    responseTime: number | null
+    checkedAt: Date
+  }[]
 }
 
 type SkpdOption = { id: string; nama: string; singkatan: string }
@@ -243,6 +248,22 @@ function handleReset() {
                     <td className="px-4 py-3">
   <div className="space-y-1">
     <StatusBadge status={app.status} />
+    {/* Badge uptime otomatis */}
+    {app.checks.length > 0 && (
+      <div className="flex items-center gap-1">
+        <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+          app.checks[0].isOnline
+            ? "bg-green-100 text-green-700"
+            : "bg-red-100 text-red-700"
+        }`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${
+            app.checks[0].isOnline ? "bg-green-500" : "bg-red-500"
+          }`} />
+          {app.checks[0].isOnline ? "Online" : "Offline"}
+          {app.checks[0].responseTime && ` · ${app.checks[0].responseTime}ms`}
+        </span>
+      </div>
+    )}
     {app.status === "SUSPEND" && app.alasanSuspend && (
       <p className="text-xs text-red-500 line-clamp-1">⚠ {app.alasanSuspend}</p>
     )}

@@ -7,7 +7,7 @@ import type { Metadata } from "next"
 import type { WebStatus } from "@prisma/client"
 
 export const metadata: Metadata = { title: "Domain & Subdomain — SIMDOM" }
-export const revalidate = 30  // ← ganti force-dynamic
+export const revalidate = 30
 
 const PAGE_SIZE = 20
 
@@ -16,13 +16,7 @@ export default async function DomainPage({
 }: {
   searchParams: Promise<{ search?: string; status?: string; skpdId?: string; page?: string }>
 }) {
-  // ✅ Jalankan auth + searchParams PARALEL
-  const [session, params] = await Promise.all([
-    auth(),
-    searchParams,
-  ])
-
-  // ✅ Security check
+  const [session, params] = await Promise.all([auth(), searchParams])
   if (!session?.user) redirect("/login")
 
   const search = params.search ?? ""
@@ -42,21 +36,31 @@ export default async function DomainPage({
   }
 
   const [webApps, total, skpds] = await Promise.all([
-  prisma.webApp.findMany({
-    where,
-    include: {
-      skpd: { select: { nama: true, singkatan: true } },
-    },
-    orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-  }),
-  prisma.webApp.count({ where }),
-  prisma.skpd.findMany({
-    select: { id: true, nama: true, singkatan: true },
-    orderBy: { singkatan: "asc" },
-  }),
-])
+    prisma.webApp.findMany({
+      where,
+      include: {
+        skpd: { select: { nama: true, singkatan: true } },
+        // ← TAMBAH: ambil 1 check terakhir per domain
+        checks: {
+          orderBy: { checkedAt: "desc" },
+          take: 1,
+          select: {
+            isOnline: true,
+            responseTime: true,
+            checkedAt: true,
+          },
+        },
+      },
+      orderBy: [{ skpd: { singkatan: "asc" } }, { nama: "asc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.webApp.count({ where }),
+    prisma.skpd.findMany({
+      select: { id: true, nama: true, singkatan: true },
+      orderBy: { singkatan: "asc" },
+    }),
+  ])
 
   return (
     <div>
