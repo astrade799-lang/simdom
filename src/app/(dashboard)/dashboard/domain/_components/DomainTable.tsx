@@ -25,7 +25,7 @@ type WebApp = {
   tanggalExpired: Date | null
   skpdId: string
   skpd: { nama: string; singkatan: string }
-  checks: {          // ← TAMBAH
+  checks: {          
     isOnline: boolean
     responseTime: number | null
     checkedAt: Date
