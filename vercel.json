@@ -1,8 +1,14 @@
 {
   "functions": {
     "src/app/**": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "crons": [
+    {
+      "path": "/api/cron/check-domains",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }
