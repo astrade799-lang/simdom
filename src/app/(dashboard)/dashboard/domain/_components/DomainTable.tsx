@@ -8,6 +8,7 @@ import { DomainModal } from "./DomainModal"
 import { DomainDetailModal } from "./DomainDetailModal"
 import { ImportDomainModal } from "./ImportDomainModal"
 import type { WebStatus, Role } from "@prisma/client"
+import { AuditModal } from "./AuditModal"
 
 type WebApp = {
   id: string
@@ -66,6 +67,9 @@ export function DomainTable({
 const [detailDomain, setDetailDomain] = useState<WebApp | null>(null)
 const [isDetailOpen, setIsDetailOpen] = useState(false)
 const [isImportOpen, setIsImportOpen] = useState(false)
+// Tambah state:
+const [isAuditOpen, setIsAuditOpen] = useState(false)
+const [auditDomain, setAuditDomain] = useState<{ id: string; nama: string; url: string } | null>(null)
 
   const totalPages = Math.ceil(total / pageSize)
   const canEdit = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
@@ -290,6 +294,19 @@ function handleReset() {
     <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
   </svg>
 </button>
+
+{canEdit && (
+  <button
+    onClick={() => { setAuditDomain({ id: app.id, nama: app.nama, url: app.url }); setIsAuditOpen(true) }}
+    className="rounded-lg p-1.5 text-gray-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+    title="Audit Teknis"
+  >
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+  </button>
+)}
+
                           {canEdit && (
                             <button onClick={() => { setSelectedDomain(app); setIsModalOpen(true) }}
                               className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors">
@@ -389,6 +406,12 @@ function handleReset() {
         domain={selectedDomain}
         skpds={skpds}
       />
+
+      <AuditModal
+  isOpen={isAuditOpen}
+  onClose={() => setIsAuditOpen(false)}
+  domain={auditDomain}
+/>
     </>
   )
 }

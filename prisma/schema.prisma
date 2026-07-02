@@ -73,6 +73,7 @@ model WebApp {
    activities     ActivityReport[]
   histories      DomainHistory[]
   checks         DomainCheck[] 
+  audits         TechnicalAudit[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -124,6 +125,45 @@ model DomainCheck {
   responseTime Int?     // dalam millisecond
   statusCode   Int?     // HTTP status code
   checkedAt    DateTime @default(now())
+
+  @@index([webAppId])
+  @@index([checkedAt])
+}
+
+enum AuditGrade {
+  BAIK      // 🟢
+  SEDANG    // 🟡
+  BURUK     // 🔴
+  BELUM_CEK // ⚪
+}
+
+model TechnicalAudit {
+  id              String     @id @default(cuid())
+  webAppId        String
+  webApp          WebApp     @relation(fields: [webAppId], references: [id], onDelete: Cascade)
+  checkedById     String
+  checkedByName   String
+
+  // Performance
+  performanceGrade    AuditGrade @default(BELUM_CEK)
+  performanceScore    Int?       // 0-100
+  performanceLink     String?    // link hasil PageSpeed
+
+  // Security
+  securityGrade       AuditGrade @default(BELUM_CEK)
+  securityScore       String?    // A/B/C/D/F
+  securityLink        String?
+
+  // Email/DNS
+  dnsGrade            AuditGrade @default(BELUM_CEK)
+  dnsStatus           String?    // OK/Warning/Error
+  dnsLink             String?
+
+  // Teknologi
+  teknologi           String?    // WordPress, Next.js, dll
+  catatanUmum         String?
+
+  checkedAt           DateTime   @default(now())
 
   @@index([webAppId])
   @@index([checkedAt])
