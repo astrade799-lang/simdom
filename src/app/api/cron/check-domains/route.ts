@@ -22,12 +22,12 @@ export async function GET(request: NextRequest) {
     try {
       const start = Date.now()
       const response = await fetch(`https://${domain.url}`, {
-        method: "HEAD",
-        signal: AbortSignal.timeout(10000), // timeout 10 detik
-        headers: { "User-Agent": "SIMDOM-Monitor/1.0" },
-      })
-      const responseTime = Date.now() - start
-      const isOnline = response.status < 500
+  method: "GET",
+  redirect: "follow",
+  signal: AbortSignal.timeout(10000),
+  headers: { "User-Agent": "SIMDOM-Monitor/1.0" },
+})
+const isOnline = response.status < 500
 
       await prisma.domainCheck.create({
         data: {
