@@ -154,18 +154,27 @@ export function AuditModal({ isOpen, onClose, domain }: AuditModalProps) {
         </div>
 
         {/* Teknologi & Catatan */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>🔧 Teknologi (Wappalyzer)</label>
-            <input name="teknologi" placeholder="mis: WordPress 6.4, PHP 8.1"
-              className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>📝 Catatan Umum</label>
-            <input name="catatanUmum" placeholder="Temuan atau rekomendasi"
-              className={inputClass} />
-          </div>
-        </div>
+        {/* Teknologi & Catatan — lebih luas */}
+<div className="space-y-3">
+  <div>
+    <label className={labelClass}>🔧 Teknologi (Wappalyzer)</label>
+    <textarea
+      name="teknologi"
+      rows={3}
+      placeholder="mis: WordPress 6.4, PHP 8.1, MySQL, Apache&#10;Atau teknologi lain yang terdeteksi Wappalyzer"
+      className={`${inputClass} resize-none`}
+    />
+  </div>
+  <div>
+    <label className={labelClass}>📝 Catatan Umum</label>
+    <textarea
+      name="catatanUmum"
+      rows={4}
+      placeholder="Temuan, rekomendasi, atau catatan penting lainnya..."
+      className={`${inputClass} resize-none`}
+    />
+  </div>
+</div>
 
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onClose}
