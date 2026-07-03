@@ -3,10 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
 enum Role {
   SUPER_ADMIN
   ADMIN
@@ -25,33 +26,41 @@ enum ActivityStatus {
   INSTRUCTED
 }
 
+enum AuditGrade {
+  BAIK      // 🟢
+  SEDANG    // 🟡
+  BURUK     // 🔴
+  BELUM_CEK // ⚪
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  namaLengkap  String?
-  nip          String? 
-  password  String
-  role      Role     @default(ADMIN)
-  skpdId    String?
-  skpd      Skpd?    @relation(fields: [skpdId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String           @id @default(cuid())
+  email       String           @unique
+  name        String
+  namaLengkap String?
+  nip         String?
+  password    String
+  role        Role             @default(ADMIN)
+  skpdId      String?
+  skpd        Skpd?            @relation(fields: [skpdId], references: [id])
+  reports     ActivityReport[] @relation("CreatedReports")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([email])
   @@index([skpdId])
 }
 
 model Skpd {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   nama            String
-  singkatan       String    @unique
+  singkatan       String   @unique
   penanggungjawab String
   kontak          String
   users           User[]
   webApps         WebApp[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model WebApp {
@@ -70,9 +79,9 @@ model WebApp {
   tanggalExpired DateTime?
   skpdId         String
   skpd           Skpd             @relation(fields: [skpdId], references: [id])
-   activities     ActivityReport[]
+  activities     ActivityReport[]
   histories      DomainHistory[]
-  checks         DomainCheck[] 
+  checks         DomainCheck[]
   audits         TechnicalAudit[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -91,10 +100,11 @@ model ActivityReport {
   webAppId      String
   webApp        WebApp         @relation(fields: [webAppId], references: [id])
   createdById   String
+  createdBy     User           @relation("CreatedReports", fields: [createdById], references: [id])
   confirmedById String?
+  buktiUrl      String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  buktiUrl    String?
 
   @@index([webAppId])
   @@index([status])
@@ -102,16 +112,16 @@ model ActivityReport {
 }
 
 model DomainHistory {
-  id          String   @id @default(cuid())
-  webAppId    String
-  webApp      WebApp   @relation(fields: [webAppId], references: [id], onDelete: Cascade)
-  userId      String
-  userName    String
-  action      String   // "UPDATE" | "STATUS_CHANGE" | "DELETE"
-  fieldName   String?  // field apa yang berubah
-  oldValue    String?  // nilai lama
-  newValue    String?  // nilai baru
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  webAppId  String
+  webApp    WebApp   @relation(fields: [webAppId], references: [id], onDelete: Cascade)
+  userId    String
+  userName  String
+  action    String
+  fieldName String?
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
 
   @@index([webAppId])
   @@index([createdAt])
@@ -122,48 +132,37 @@ model DomainCheck {
   webAppId     String
   webApp       WebApp   @relation(fields: [webAppId], references: [id], onDelete: Cascade)
   isOnline     Boolean
-  responseTime Int?     // dalam millisecond
-  statusCode   Int?     // HTTP status code
+  responseTime Int?
+  statusCode   Int?
   checkedAt    DateTime @default(now())
 
   @@index([webAppId])
   @@index([checkedAt])
 }
 
-enum AuditGrade {
-  BAIK      // 🟢
-  SEDANG    // 🟡
-  BURUK     // 🔴
-  BELUM_CEK // ⚪
-}
-
 model TechnicalAudit {
-  id              String     @id @default(cuid())
-  webAppId        String
-  webApp          WebApp     @relation(fields: [webAppId], references: [id], onDelete: Cascade)
-  checkedById     String
-  checkedByName   String
+  id            String @id @default(cuid())
+  webAppId      String
+  webApp        WebApp @relation(fields: [webAppId], references: [id], onDelete: Cascade)
+  checkedById   String
+  checkedByName String
 
-  // Performance
-  performanceGrade    AuditGrade @default(BELUM_CEK)
-  performanceScore    Int?       // 0-100
-  performanceLink     String?    // link hasil PageSpeed
+  performanceGrade AuditGrade @default(BELUM_CEK)
+  performanceScore Int?
+  performanceLink  String?
 
-  // Security
-  securityGrade       AuditGrade @default(BELUM_CEK)
-  securityScore       String?    // A/B/C/D/F
-  securityLink        String?
+  securityGrade AuditGrade @default(BELUM_CEK)
+  securityScore String?
+  securityLink  String?
 
-  // Email/DNS
-  dnsGrade            AuditGrade @default(BELUM_CEK)
-  dnsStatus           String?    // OK/Warning/Error
-  dnsLink             String?
+  dnsGrade  AuditGrade @default(BELUM_CEK)
+  dnsStatus String?
+  dnsLink   String?
 
-  // Teknologi
-  teknologi           String?    // WordPress, Next.js, dll
-  catatanUmum         String?
+  teknologi   String?
+  catatanUmum String?
 
-  checkedAt           DateTime   @default(now())
+  checkedAt DateTime @default(now())
 
   @@index([webAppId])
   @@index([checkedAt])

@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { laporanSchema } from "@/lib/validations/laporan"
 import { revalidatePath } from "next/cache"
+import { sendEmailLaporanBaru, sendEmailStatusLaporan } from "@/lib/email"
 
 type ActionResult = { success: boolean; message: string }
 
@@ -45,7 +46,8 @@ export async function createLaporan(formData: FormData): Promise<ActionResult> {
       return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
     }
 
-    await prisma.activityReport.create({
+    // ✅ Ambil data domain + SKPD sekaligus untuk email
+    const laporan = await prisma.activityReport.create({
       data: {
         jenisKegiatan: validated.data.jenisKegiatan,
         deskripsi: validated.data.deskripsi,
@@ -54,7 +56,35 @@ export async function createLaporan(formData: FormData): Promise<ActionResult> {
         createdById: session.user.id,
         buktiUrl: (formData.get("buktiUrl") as string) || null,
       },
+      include: {
+        webApp: {
+          select: {
+            nama: true,
+            skpd: { select: { singkatan: true } },
+          },
+        },
+      },
     })
+
+    // ✅ Kirim email ke semua Kabid (fire and forget)
+    prisma.user.findMany({
+      where: { role: "KABID" },
+      select: { email: true, name: true, namaLengkap: true },
+    }).then((kabids) => {
+      kabids.forEach((kabid) => {
+        sendEmailLaporanBaru({
+          kabidEmail: kabid.email,
+          kabidName: kabid.namaLengkap ?? kabid.name,
+          jenisKegiatan: laporan.jenisKegiatan,
+          domainNama: laporan.webApp.nama,
+          skpdSingkatan: laporan.webApp.skpd.singkatan,
+          pembuatName: session.user.name ?? "Admin",
+          tanggal: laporan.tanggal,
+          laporanId: laporan.id,
+        })
+      })
+    }).catch((e) => console.error("[EMAIL] Gagal kirim notif Kabid:", e))
+
     revalidatePath("/dashboard/laporan")
     revalidatePath("/dashboard")
     return { success: true, message: "Laporan berhasil ditambahkan" }
@@ -76,7 +106,6 @@ export async function updateLaporan(id: string, formData: FormData): Promise<Act
     if (!validated.success) {
       return { success: false, message: validated.error.issues[0]?.message ?? "Validasi gagal" }
     }
-
     const existing = await prisma.activityReport.findUnique({ where: { id } })
     if (!existing) return { success: false, message: "Laporan tidak ditemukan" }
     if (existing.status !== "PENDING") return { success: false, message: "Laporan yang sudah dikonfirmasi tidak bisa diedit" }
@@ -115,10 +144,28 @@ export async function konfirmasiLaporan(id: string): Promise<ActionResult> {
     const session = await requireAuth()
     if (session.user.role === "ADMIN") throw new Error("FORBIDDEN")
 
-    await prisma.activityReport.update({
+    // ✅ Ambil data pembuat untuk kirim email
+    const laporan = await prisma.activityReport.update({
       where: { id },
       data: { status: "CONFIRMED", confirmedById: session.user.id, instruksi: null },
+      include: {
+        webApp: { select: { nama: true } },
+        createdBy: { select: { email: true, name: true, namaLengkap: true } },
+      },
     })
+
+    // ✅ Kirim email ke pembuat (fire and forget)
+    if (laporan.createdBy?.email) {
+      sendEmailStatusLaporan({
+        pembuatEmail: laporan.createdBy.email,
+        pembuatName: laporan.createdBy.namaLengkap ?? laporan.createdBy.name,
+        jenisKegiatan: laporan.jenisKegiatan,
+        domainNama: laporan.webApp.nama,
+        status: "CONFIRMED",
+        instruksi: null,
+      }).catch((e) => console.error("[EMAIL] Gagal kirim notif konfirmasi:", e))
+    }
+
     revalidatePath("/dashboard/laporan")
     revalidatePath("/dashboard")
     return { success: true, message: "Laporan berhasil dikonfirmasi" }
@@ -133,10 +180,28 @@ export async function instruksiLaporan(id: string, instruksi: string): Promise<A
     if (session.user.role === "ADMIN") throw new Error("FORBIDDEN")
     if (!instruksi.trim()) return { success: false, message: "Instruksi tidak boleh kosong" }
 
-    await prisma.activityReport.update({
+    // ✅ Ambil data pembuat untuk kirim email
+    const laporan = await prisma.activityReport.update({
       where: { id },
       data: { status: "INSTRUCTED", confirmedById: session.user.id, instruksi: instruksi.trim() },
+      include: {
+        webApp: { select: { nama: true } },
+        createdBy: { select: { email: true, name: true, namaLengkap: true } },
+      },
     })
+
+    // ✅ Kirim email ke pembuat (fire and forget)
+    if (laporan.createdBy?.email) {
+      sendEmailStatusLaporan({
+        pembuatEmail: laporan.createdBy.email,
+        pembuatName: laporan.createdBy.namaLengkap ?? laporan.createdBy.name,
+        jenisKegiatan: laporan.jenisKegiatan,
+        domainNama: laporan.webApp.nama,
+        status: "INSTRUCTED",
+        instruksi: instruksi.trim(),
+      }).catch((e) => console.error("[EMAIL] Gagal kirim notif instruksi:", e))
+    }
+
     revalidatePath("/dashboard/laporan")
     return { success: true, message: "Instruksi berhasil diberikan" }
   } catch (error) {
