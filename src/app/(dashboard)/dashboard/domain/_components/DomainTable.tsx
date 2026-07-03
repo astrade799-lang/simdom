@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { deleteDomain } from "@/actions/domain"
 import { StatusBadge } from "@/components/ui/Badge"
@@ -82,13 +82,10 @@ const [auditDomain, setAuditDomain] = useState<{ id: string; nama: string; url: 
 
   function updateFilter(key: string, value: string) {
   const params = new URLSearchParams(searchParams.toString())
-  if (value) {
-    params.set(key, value)
-  } else {
-    params.delete(key)
-  }
+  if (value) params.set(key, value)
+  else params.delete(key)
   params.set("page", "1")
-  window.location.href = `${pathname}?${params.toString()}`
+  router.push(`${pathname}?${params.toString()}`)  // ← ganti window.location.href
 }
 
 function goToPage(newPage: number) {
@@ -114,6 +111,15 @@ function handleReset() {
   const selectClass = "rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
   const hasFilter = currentSearch || currentStatus || currentSkpdId
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== currentSearch) {
+        updateFilter("search", searchInput)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   return (
     <>
       {toast && (
@@ -130,15 +136,13 @@ function handleReset() {
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
           </svg>
           <input
-            type="text"
-            placeholder="Cari nama atau domain..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") updateFilter("search", searchInput)
-            }}
-            className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
+        type="text"
+        placeholder="Cari nama atau domain..."
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        // ← tidak ada useEffect di sini
+        className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+      />
         </div>
 
         {/* Status Filter */}

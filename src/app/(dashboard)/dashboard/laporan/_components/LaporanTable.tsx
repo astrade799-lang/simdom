@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { deleteLaporan } from "@/actions/laporan"
 import { ActivityBadge } from "@/components/ui/Badge"
 import { LaporanModal } from "./LaporanModal"
@@ -97,6 +97,7 @@ export function LaporanTable({
 }: LaporanTableProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   const currentSearch = searchParams.get("search") || ""
   const currentStatus = searchParams.get("status") || ""
@@ -155,14 +156,14 @@ const [exportOptions, setExportOptions] = useState({
 
   // Server-side filter (search, status, skpd) — tetap reload
   function updateFilter(updates: Record<string, string>) {
-    const params = new URLSearchParams(searchParams.toString())
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) params.set(key, value)
-      else params.delete(key)
-    })
-    params.set("page", "1")
-    window.location.href = `${pathname}?${params.toString()}`
-  }
+  const params = new URLSearchParams(searchParams.toString())
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value) params.set(key, value)
+    else params.delete(key)
+  })
+  params.set("page", "1")
+  router.push(`${pathname}?${params.toString()}`)  // ← ganti ini
+}
 
   function goToPage(newPage: number) {
     const params = new URLSearchParams(searchParams.toString())
@@ -225,6 +226,15 @@ const [exportOptions, setExportOptions] = useState({
   const selectClass = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
   const hasFilter = currentSearch || currentStatus || currentSkpdId
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== currentSearch) {
+        updateFilter("search", searchInput)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   return (
     <>
       {toast && (
@@ -243,13 +253,13 @@ const [exportOptions, setExportOptions] = useState({
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
             <input
-              type="text"
-              placeholder="Cari jenis kegiatan atau domain..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") updateFilter({ search: searchInput }) }}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
+        type="text"
+        placeholder="Cari nama atau domain..."
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        // ← tidak ada useEffect di sini
+        className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+      />
           </div>
 
           <select value={currentStatus} onChange={(e) => updateFilter({ status: e.target.value })} className={selectClass}>
